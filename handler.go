@@ -1,11 +1,17 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
+
+//go:embed static/index.html
+var indexHTML string
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" && !strings.HasSuffix(r.URL.Path, ".svg") {
@@ -26,7 +32,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	var img string
 	if img = Analysis.FindCachedImg(); img != "" {
 		log.Println("serving file:", img)
-		http.ServeFile(w, r, img)
+		serveFile(w, r, img)
 		return
 	}
 
@@ -63,6 +69,37 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("serving file:", img)
-	http.ServeFile(w, r, img)
+	serveFile(w, r, img)
 }
 
+type VariablesToRender struct {
+	SvgData template.HTML
+	// other fields...
+}
+
+func serveFile(w http.ResponseWriter, r *http.Request, imgPath string) {
+	// read the data in the file `imgPath` and store it in the byte array `data`
+	data, err := os.ReadFile(imgPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	myvar := VariablesToRender{
+		SvgData: template.HTML(data),
+		// set other fields...
+	}
+
+	outputHTML(w, myvar)
+}
+
+func outputHTML(w http.ResponseWriter, data interface{}) {
+	t, err := template.New("index").Parse(indexHTML)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if err := t.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+}
