@@ -13,6 +13,8 @@ import (
 //go:embed static/index.html
 var indexHTML string
 
+var tpl = template.Must(template.New("index").Parse(indexHTML))
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" && !strings.HasSuffix(r.URL.Path, ".svg") {
 		http.NotFound(w, r)
@@ -93,12 +95,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, imgPath string) {
 }
 
 func outputHTML(w http.ResponseWriter, data interface{}) {
-	t, err := template.New("index").Parse(indexHTML)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	if err := t.Execute(w, data); err != nil {
+	if err := tpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
