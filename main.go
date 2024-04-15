@@ -1,5 +1,4 @@
 // go-callvis: a tool to help visualize the call graph of a Go program.
-//
 package main
 
 import (
@@ -118,48 +117,58 @@ func outputDot(fname string, outputFormat string) {
 	}
 }
 
-//noinspection GoUnhandledErrorResult
+// noinspection GoUnhandledErrorResult
 func main() {
 	flag.Parse()
 
+	// If the version flag is set, print the version and exit
 	if *versionFlag {
 		fmt.Fprintln(os.Stderr, Version())
 		os.Exit(0)
 	}
+	// If the debug flag is set, enable microsecond-level logging
 	if *debugFlag {
 		log.SetFlags(log.Lmicroseconds)
 	}
 
+	// If there is not exactly one argument, print usage and exit
 	if flag.NArg() != 1 {
 		fmt.Fprint(os.Stderr, Usage)
 		flag.PrintDefaults()
 		os.Exit(2)
 	}
 
+	// Get command-line arguments
 	args := flag.Args()
 	tests := *testFlag
 	httpAddr := *httpFlag
 	urlAddr := parseHTTPAddr(httpAddr)
 
+	// Perform analysis
 	Analysis = new(analysis)
 	if err := Analysis.DoAnalysis(CallGraphType(*callgraphAlgo), "", tests, args); err != nil {
 		log.Fatal(err)
 	}
 
+	// Set up HTTP handler
 	http.HandleFunc("/", handler)
 
+	// If no output file is specified, serve over HTTP
 	if *outputFile == "" {
 		*outputFile = "output"
+		// If not skipping browser, open the URL in a browser
 		if !*skipBrowser {
 			go openBrowser(urlAddr)
 		}
 
 		log.Printf("http serving at %s", urlAddr)
 
+		// Start the HTTP server
 		if err := http.ListenAndServe(httpAddr, nil); err != nil {
 			log.Fatal(err)
 		}
 	} else {
+		// If an output file is specified, output the dot graph
 		outputDot(*outputFile, *outputFormat)
 	}
 }
